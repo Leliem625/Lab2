@@ -74,8 +74,74 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-        "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        if successorGameState.isWin():
+            return float('inf')
+        if successorGameState.isLose():
+            return -float('inf')
+
+        foodList = newFood.asList()
+        capsules = successorGameState.getCapsules()
+
+        score = successorGameState.getScore()
+
+        score -= 2.5 * len(foodList)
+
+        if foodList:
+            foodDistance = min(
+                manhattanDistance(newPos, food)
+                for food in foodList
+            )
+            score += 14.0 / (foodDistance + 1.0)
+
+        ghostDistances = []
+        dangerousGhostDistances = []
+
+        for ghostState, scaredTime in zip(newGhostStates, newScaredTimes):
+            ghostPos = ghostState.getPosition()
+
+            if ghostPos is None:
+                continue
+
+            distance = manhattanDistance(newPos, ghostPos)
+            ghostDistances.append((distance, scaredTime))
+
+            if scaredTime <= 0:
+                dangerousGhostDistances.append(distance)
+
+        score -= 3.0 * len(capsules)
+
+        if capsules and dangerousGhostDistances:
+            nearestGhost = min(dangerousGhostDistances)
+
+            if nearestGhost <= 6:
+                capsuleDistance = min(
+                    manhattanDistance(newPos, capsule)
+                    for capsule in capsules
+                )
+                score += 22.0 / (capsuleDistance + 1.0)
+
+        for distance, scaredTime in ghostDistances:
+
+            if scaredTime > 0:
+                if scaredTime >= 3 and distance <= 3:
+                    score += 12.0 / (distance + 1.0)
+                else:
+                    score += 2.0 / (distance + 1.0)
+
+            else:
+                if distance <= 1:
+                    score -= 180.0
+                elif distance == 2:
+                    score -= 55.0
+                elif distance == 3:
+                    score -= 18.0
+                else:
+                    score -= 1.5 / (distance + 1.0)
+
+        if action == Directions.STOP:
+            score -= 4.0
+
+        return score
 
 def scoreEvaluationFunction(currentGameState: GameState):
     """
@@ -135,8 +201,86 @@ class MinimaxAgent(MultiAgentSearchAgent):
         gameState.isLose():
         Returns whether or not the game state is a losing state
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        numAgents = gameState.getNumAgents()
+
+        if gameState.isWin() or gameState.isLose():
+            return Directions.STOP
+
+        if self.depth <= 0:
+            return Directions.STOP
+
+        legalActions = gameState.getLegalActions(0)
+
+        if not legalActions:
+            return Directions.STOP
+
+        def minimaxValue(state, agentIndex, depth):
+
+            if depth >= self.depth or state.isWin() or state.isLose():
+                return self.evaluationFunction(state)
+
+            actions = state.getLegalActions(agentIndex)
+
+            if not actions:
+                return self.evaluationFunction(state)
+
+            nextAgent = (agentIndex + 1) % numAgents
+            nextDepth = depth
+
+            if nextAgent == 0:
+                nextDepth += 1
+
+            if agentIndex == 0:
+                bestValue = -float('inf')
+
+                for action in actions:
+                    successor = state.generateSuccessor(agentIndex, action)
+
+                    value = minimaxValue(
+                        successor, nextAgent, nextDepth
+                    )
+
+                    if value > bestValue:
+                        bestValue = value
+
+                return bestValue
+
+            else:
+                bestValue = float('inf')
+
+                for action in actions:
+                    successor = state.generateSuccessor(agentIndex, action)
+
+                    value = minimaxValue(
+                        successor, nextAgent, nextDepth
+                    )
+
+                    if value < bestValue:
+                        bestValue = value
+
+                return bestValue
+
+        bestAction = legalActions[0]
+        bestValue = -float('inf')
+
+        nextAgent = (0 + 1) % numAgents
+        nextDepth = 0
+
+        if nextAgent == 0:
+            nextDepth += 1
+
+        for action in legalActions:
+            successor = gameState.generateSuccessor(0, action)
+
+            value = minimaxValue(
+                successor, nextAgent, nextDepth
+            )
+
+            if value > bestValue:
+                bestValue = value
+                bestAction = action
+        return bestAction
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
