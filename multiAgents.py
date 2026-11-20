@@ -291,7 +291,79 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
-        "*** YOUR CODE HERE ***"
+        numAgents = gameState.getNumAgents()
+
+        # Kiểm tra trạng thái kết thúc ở ngay root
+        if gameState.isWin() or gameState.isLose() or self.depth <= 0:
+            return Directions.STOP
+
+        legalActions = gameState.getLegalActions(0)
+        if not legalActions:
+            return Directions.STOP
+
+        def alphaBetaValue(state, agentIndex, depth, alpha, beta):
+            # Nếu đạt đến độ sâu yêu cầu hoặc trạng thái kết thúc, trả về giá trị lượng giá
+            if depth >= self.depth or state.isWin() or state.isLose():
+                return self.evaluationFunction(state)
+
+            actions = state.getLegalActions(agentIndex)
+            if not actions:
+                return self.evaluationFunction(state)
+
+            nextAgent = (agentIndex + 1) % numAgents
+            nextDepth = depth
+            if nextAgent == 0:
+                nextDepth += 1
+
+            if agentIndex == 0:
+                v = -float('inf')
+                for action in actions:
+                    successor = state.generateSuccessor(agentIndex, action)
+                    v = max(v, alphaBetaValue(successor, nextAgent, nextDepth, alpha, beta))
+                    
+                    # Cắt tỉa Alpha-Beta:Không cắt tỉa khi bằng nhau
+                    if v > beta:
+                        return v
+                
+                    alpha = max(alpha, v)
+                return v
+
+            else:
+                v = float('inf')
+                for action in actions:
+                    successor = state.generateSuccessor(agentIndex, action)
+                    v = min(v, alphaBetaValue(successor, nextAgent, nextDepth, alpha, beta))
+                    
+                    if v < alpha:
+                        return v
+                    
+                    # Cập nhật beta
+                    beta = min(beta, v)
+                return v
+
+        bestAction = legalActions[0]
+        bestValue = -float('inf')
+        alpha = -float('inf')
+        beta = float('inf')
+
+        nextAgent = (0 + 1) % numAgents
+        nextDepth = 0
+        if nextAgent == 0:
+            nextDepth += 1
+
+        # Duyệt qua các hành động hợp lệ của root
+        for action in legalActions:
+            successor = gameState.generateSuccessor(0, action)
+            
+            value = alphaBetaValue(successor, nextAgent, nextDepth, alpha, beta)
+
+            if value > bestValue:
+                bestValue = value
+                bestAction = action
+            
+            alpha = max(alpha, bestValue)
+
+        return bestAction
         util.raiseNotDefined()
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
